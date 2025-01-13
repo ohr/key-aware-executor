@@ -11,7 +11,8 @@ import static java.util.concurrent.CompletableFuture.supplyAsync;
 /**
  * Concrete Implementation of AbstractGroupAwareExecutor for tasks implementing {@link Supplier}.
  */
-public class GroupAwareSupplierExecutor<U> extends AbstractGroupAwareExecutor<U, Supplier<U>> {
+public class GroupAwareSupplierExecutor<U>
+        extends AbstractGroupAwareExecutor<U, Supplier<U>, GroupAwareSupplier<U>> {
 
     public GroupAwareSupplierExecutor() {
         super();
@@ -36,18 +37,15 @@ public class GroupAwareSupplierExecutor<U> extends AbstractGroupAwareExecutor<U,
     }
 
     /**
-     * Submits a Supplier that also implements {@link GroupAware}, so that no separate group
+     * Submits a Supplier that also implements {@link GroupAwareTask}, so that no separate group
      * parameter is necessary. This allows this class to also implement {@link Executor}.
      *
-     * @param task Supplier that also implements {@link GroupAware}, e.g. {@link GroupAwareSupplier}.
+     * @param task Supplier that also implements {@link GroupAwareTask}, e.g. {@link GroupAwareSupplier}.
      * @return task future
      */
-    public CompletableFuture<U> submit(Supplier<U> task) {
-        if (task instanceof GroupAwareSupplier<U> keyAwareSupplier) {
-            return submit(keyAwareSupplier, keyAwareSupplier.getGroup());
-        } else {
-            throw new IllegalArgumentException("Runnable must implement " + GroupAwareSupplier.class);
-        }
+    @Override
+    public CompletableFuture<U> submit(GroupAwareSupplier<U> task) {
+        return submit(task, task.getGroup());
     }
 
 }

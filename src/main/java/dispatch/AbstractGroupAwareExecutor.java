@@ -3,7 +3,12 @@ package dispatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
 
 import static java.util.Objects.requireNonNull;
 
@@ -16,7 +21,7 @@ import static java.util.Objects.requireNonNull;
  * @param <U> result of the task
  * @param <T> type of the task
  */
-public abstract class AbstractGroupAwareExecutor<U, T> {
+public abstract class AbstractGroupAwareExecutor<U, T, G extends GroupAwareTask<U>> {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractGroupAwareExecutor.class);
     private final ExecutorService executorService;
@@ -68,6 +73,8 @@ public abstract class AbstractGroupAwareExecutor<U, T> {
         return future;
     }
 
+    public abstract CompletableFuture<U> submit(G task);
+
     private CompletableFuture<U> submitNow(T task, Object group) {
         log.debug("Immediately submit task for group {}", group);
         return doRunAsync(task, executorService);
@@ -95,7 +102,7 @@ public abstract class AbstractGroupAwareExecutor<U, T> {
      */
     protected abstract U doRunSync(T task);
 
-    public int getKeyMapSize() {
+    public int getGroupMapSize() {
         return tasks.size();
     }
 

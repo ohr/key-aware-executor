@@ -2,15 +2,14 @@ package dispatch;
 
 import lombok.SneakyThrows;
 
-import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-public class GroupAwareSupplierExecutorTest extends AbstractGroupAwareExecutorTest<Result, Supplier<Result>, GroupAwareSupplier<Result>> {
+public class GroupAwareSupplierDefaultExecutorTest extends AbstractGroupAwareExecutorTest<Result, Supplier<Result>, GroupAwareSupplier<Result>> {
 
     @Override
     protected AbstractGroupAwareExecutor<Result, Supplier<Result>, GroupAwareSupplier<Result>> newExecutor() {
-        return new GroupAwareSupplierExecutor<>(Executors.newFixedThreadPool(5));
+        return new GroupAwareSupplierExecutor<>();
     }
 
     @Override

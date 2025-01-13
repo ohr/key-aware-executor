@@ -2,10 +2,9 @@ package dispatch;
 
 import lombok.SneakyThrows;
 
-import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
-public class GroupAwareRunnableExecutorTest extends AbstractGroupAwareExecutorTest<Void, Runnable, GroupAwareRunnable> {
+public class GroupAwareRunnableDefaultExecutorTest extends AbstractGroupAwareExecutorTest<Void, Runnable, GroupAwareRunnable> {
 
     @Override
     protected void produceResult(AbstractGroupAwareExecutor<Void, Runnable, GroupAwareRunnable> executor) {
@@ -16,7 +15,7 @@ public class GroupAwareRunnableExecutorTest extends AbstractGroupAwareExecutorTe
 
     @Override
     protected AbstractGroupAwareExecutor<Void, Runnable, GroupAwareRunnable> newExecutor() {
-        return new GroupAwareRunnableExecutor(Executors.newFixedThreadPool(5));
+        return new GroupAwareRunnableExecutor();
     }
 
 

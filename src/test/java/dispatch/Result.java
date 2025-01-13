@@ -1,4 +1,4 @@
 package dispatch;
 
-record Result(Integer group, int counter, String threadName) {
+public record Result(Integer group, int counter, String threadName) {
 }

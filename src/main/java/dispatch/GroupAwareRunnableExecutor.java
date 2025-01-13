@@ -3,14 +3,15 @@ package dispatch;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
 
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 /**
  * Concrete Implementation of AbstractGroupAwareExecutor for tasks implementing {@link Runnable}.
  */
-public class GroupAwareRunnableExecutor extends AbstractGroupAwareExecutor<Void, Runnable> implements Executor {
+public class GroupAwareRunnableExecutor
+        extends AbstractGroupAwareExecutor<Void, Runnable, GroupAwareRunnable>
+        implements Executor {
 
     public GroupAwareRunnableExecutor() {
         super();
@@ -32,23 +33,21 @@ public class GroupAwareRunnableExecutor extends AbstractGroupAwareExecutor<Void,
     }
 
     /**
-     * Submits a Runnable that also implements {@link GroupAware}, so that no separate group
+     * Submits a Runnable that also implements {@link GroupAwareTask}, so that no separate group
      * parameter is necessary. This allows this class to also implement {@link Executor}.
      *
-     * @param task Runnable that also implements {@link GroupAware}, e.g. {@link GroupAwareRunnable}.
+     * @param task Runnable that also implements {@link GroupAwareTask}, e.g. {@link GroupAwareRunnable}.
      * @return task future
      */
-    public CompletableFuture<Void> submit(Runnable task) {
-        if (task instanceof GroupAware groupAware) {
-            return submit(task, groupAware.getGroup());
-        } else {
-            throw new IllegalArgumentException("Runnable must implement " + GroupAware.class);
-        }
+    @Override
+    public CompletableFuture<Void> submit(GroupAwareRunnable task) {
+        return submit(task, task.getGroup());
     }
 
     @Override
     public void execute(Runnable command) {
-        submit(command);
+        if (command instanceof GroupAwareRunnable runnable) {
+            submit(runnable);
+        }
     }
-
 }
