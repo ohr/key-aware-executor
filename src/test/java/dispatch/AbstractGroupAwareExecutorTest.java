@@ -1,6 +1,5 @@
 package dispatch;
 
-import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +11,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.hasSize;
 abstract class AbstractGroupAwareExecutorTest<U, T, G extends GroupAwareTask<U>> {
 
     protected static final List<Result> results = new CopyOnWriteArrayList<>();
+    protected static final AtomicInteger failures = new AtomicInteger(0);
     protected static final AtomicInteger counter = new AtomicInteger(0);
     protected static final Random random = new SecureRandom();
 
@@ -34,6 +35,7 @@ abstract class AbstractGroupAwareExecutorTest<U, T, G extends GroupAwareTask<U>>
     @BeforeEach
     public void before() {
         results.clear();
+        failures.set(0);
         counter.set(0);
     }
 
@@ -41,11 +43,11 @@ abstract class AbstractGroupAwareExecutorTest<U, T, G extends GroupAwareTask<U>>
     public void singleThreadedProducer() {
         var executor = newExecutor();
         produceResult(executor);
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-            .until(() -> results, hasSize(LOOPS));
-
+        await().atMost(10, TimeUnit.SECONDS)
+            .until(counter::get, equalTo(LOOPS));
+        assertThat(results, hasSize(LOOPS - failures.get()));
         assertThat(executor.getGroupMapSize(), equalTo(0));
-        // Check that tasks with the same group have increasing counter values
+        // Check that tasks with the same group have increasing values
         var map = new HashMap<Integer, Integer>();
         // results.forEach(System.out::println);
         results.forEach(r ->

@@ -55,8 +55,8 @@ public abstract class AbstractGroupAwareExecutor<U, T, G extends GroupAwareTask<
         if (executorService.isShutdown()) {
             throw new RejectedExecutionException("Executor is shut down");
         }
-        // Add new future entry to task map or execute after previous task with
-        // same group has finished.
+        // Add the new future entry to the task map or execute after the previous task
+        // of the same group has finished.
         log.debug("Submitting task for group {}", group);
         var future = tasks.compute(
             requireNonNull(group, "group must not be null"),
@@ -86,7 +86,7 @@ public abstract class AbstractGroupAwareExecutor<U, T, G extends GroupAwareTask<
     }
 
     /**
-     * Run task asynchronously using the executorService
+     * Run the task asynchronously using the executorService
      *
      * @param task task
      * @param executorService thread pool
