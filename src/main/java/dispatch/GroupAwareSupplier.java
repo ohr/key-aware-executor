@@ -3,7 +3,7 @@ package dispatch;
 import java.util.function.Supplier;
 
 /**
- * A group-aware Supplier
+ * Base interface for a group-aware {@link Supplier}.
  *
  * @param <U> result type of the supplier
  */

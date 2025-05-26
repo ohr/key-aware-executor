@@ -46,6 +46,7 @@ abstract class AbstractGroupAwareExecutorTest<U, T, G extends GroupAwareTask<U>>
         await().atMost(10, TimeUnit.SECONDS)
             .until(counter::get, equalTo(LOOPS));
         assertThat(results, hasSize(LOOPS - failures.get()));
+        // Check that group map is clean
         assertThat(executor.getGroupMapSize(), equalTo(0));
         // Check that tasks with the same group have increasing values
         var map = new HashMap<Integer, Integer>();

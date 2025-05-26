@@ -3,7 +3,6 @@ package dispatch;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.util.concurrent.CompletableFuture.supplyAsync;
@@ -32,12 +31,8 @@ public class GroupAwareSupplierExecutor<U>
         return task.get();
     }
 
-    public CompletableFuture<U> submit(Object key, Function<Object, U> consumer) {
-        return submit(() -> consumer.apply(key), key);
-    }
-
     /**
-     * Submits a Supplier that also implements {@link GroupAwareTask}, so that no separate group
+     * Submits a {@link Supplier} that also implements {@link GroupAwareTask}, so that no separate group
      * parameter is necessary. This allows this class to also implement {@link Executor}.
      *
      * @param task Supplier that also implements {@link GroupAwareTask}, e.g. {@link GroupAwareSupplier}.

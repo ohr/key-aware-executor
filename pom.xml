@@ -47,7 +47,6 @@
                 <version>3.13.0</version>
                 <configuration>
                     <release>21</release>
-                    <forceLegacyJavacApi>true</forceLegacyJavacApi>
                 </configuration>
             </plugin>
         </plugins>

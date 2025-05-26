@@ -1,7 +1,7 @@
 package dispatch;
 
 /**
- * A group-aware Runnable
+ * Base interface for a group-aware {@link Runnable}.
  */
 public interface GroupAwareRunnable extends GroupAwareTask<Void>, Runnable {
 

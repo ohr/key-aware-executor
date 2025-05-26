@@ -48,6 +48,8 @@ public class GroupAwareRunnableExecutor
     public void execute(Runnable command) {
         if (command instanceof GroupAwareRunnable runnable) {
             submit(runnable);
+        } else {
+            throw new IllegalArgumentException("Argument must implement GroupAwareRunnable");
         }
     }
 }
