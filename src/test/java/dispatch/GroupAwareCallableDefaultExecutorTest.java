@@ -1,12 +1,13 @@
 package dispatch;
 
-import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 
 class GroupAwareCallableDefaultExecutorTest extends AbstractGroupAwareCallableTest {
 
     @Override
-    protected AbstractGroupAwareExecutor<Result, Callable<Result>, GroupAwareCallable<Result>> newExecutor() {
-        return new GroupAwareCallableExecutor<>();
+    protected ExecutorService newPool() {
+        return ForkJoinPool.commonPool();
     }
 
 }

@@ -1,13 +1,13 @@
 package dispatch;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 class GroupAwareRunnableVirtualExecutorTest extends AbstractGroupAwareRunnableTest {
 
-
     @Override
-    protected AbstractGroupAwareExecutor<Void, Runnable, GroupAwareRunnable> newExecutor() {
-        return new GroupAwareRunnableExecutor(Executors.newVirtualThreadPerTaskExecutor());
+    protected ExecutorService newPool() {
+        return Executors.newVirtualThreadPerTaskExecutor();
     }
 
 }

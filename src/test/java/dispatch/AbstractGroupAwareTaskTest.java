@@ -1,0 +1,23 @@
+package dispatch;
+
+import java.util.concurrent.CompletableFuture;
+
+abstract class AbstractGroupAwareTaskTest extends AbstractGroupAwareExecutorTest {
+
+    @Override
+    protected CompletableFuture<?> submit(GroupAwareExecutor executor, Integer group, Runnable body) {
+        return executor.submit(new GroupAwareSupplier<String>() {
+            @Override
+            public String get() {
+                body.run();
+                return Thread.currentThread().getName();
+            }
+
+            @Override
+            public Object getGroup() {
+                return group;
+            }
+        });
+    }
+
+}
