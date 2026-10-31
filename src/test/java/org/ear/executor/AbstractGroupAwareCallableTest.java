@@ -1,4 +1,4 @@
-package dispatch;
+package org.ear.executor;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -6,10 +6,10 @@ abstract class AbstractGroupAwareCallableTest extends AbstractGroupAwareExecutor
 
     @Override
     protected CompletableFuture<?> submit(GroupAwareExecutor executor, Integer group, Runnable body) {
-        return executor.submit(() -> {
+        return executor.submit(group, () -> {
             body.run();
             return Thread.currentThread().getName();
-        }, group);
+        });
     }
 
 }

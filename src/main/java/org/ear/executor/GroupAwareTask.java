@@ -1,4 +1,4 @@
-package dispatch;
+package org.ear.executor;
 
 /**
  * Base interface for a task that can be executed to produce a result of type
@@ -19,7 +19,8 @@ public interface GroupAwareTask<U> {
      * Execute the task
      *
      * @return return value of the task
+     * @throws Exception if the task fails
      */
-    U execute();
+    U execute() throws Exception;
 
 }

@@ -1,4 +1,6 @@
-package dispatch;
+package org.ear.executor;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
@@ -13,7 +15,7 @@ class DirectExecutorService extends AbstractExecutorService {
     private volatile boolean shutdown;
 
     @Override
-    public void execute(Runnable command) {
+    public void execute(@NonNull Runnable command) {
         if (shutdown) {
             throw new RejectedExecutionException("Executor is shut down");
         }
@@ -42,7 +44,7 @@ class DirectExecutorService extends AbstractExecutorService {
     }
 
     @Override
-    public boolean awaitTermination(long timeout, TimeUnit unit) {
+    public boolean awaitTermination(long timeout, @NonNull TimeUnit unit) {
         return shutdown;
     }
 }

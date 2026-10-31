@@ -1,4 +1,4 @@
-package dispatch;
+package org.ear.executor;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -14,10 +14,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,17 +35,17 @@ class GroupAwareExecutorTest {
 
     @Test
     void resultTypesMayDifferPerTask() throws Exception {
-        var number = executor.submit(() -> 42, "group");
-        var text = executor.submit(() -> "text", "group");
+        var number = executor.submit("group", () -> 42);
+        var text = executor.submit("group", () -> "text");
         assertEquals(42, number.get(10, SECONDS));
         assertEquals("text", text.get(10, SECONDS));
     }
 
     @Test
     void checkedExceptionOfCallableIsCauseOfFailure() {
-        var future = executor.submit(() -> {
+        var future = executor.submit("group", () -> {
             throw new IOException("failed");
-        }, "group");
+        });
         var e = assertThrows(ExecutionException.class, () -> future.get(10, SECONDS));
         assertInstanceOf(IOException.class, e.getCause());
     }
@@ -70,7 +72,7 @@ class GroupAwareExecutorTest {
         List<Integer> executed = Collections.synchronizedList(new ArrayList<>());
         for (int i = 0; i < 10; i++) {
             int seq = i;
-            executor.execute(groupAwareRunnable("group", () -> {
+            executor.execute(GroupAwareRunnable.of("group", () -> {
                 executed.add(seq);
                 if (seq % 2 == 0) {
                     throw new IllegalStateException("failure of task " + seq);
@@ -91,9 +93,9 @@ class GroupAwareExecutorTest {
     void submitBlocksWhileLimitIsReached() throws Exception {
         var bounded = new GroupAwareExecutor(pool, 2);
         var release = new CountDownLatch(1);
-        bounded.submit(() -> await(release), "a");
-        bounded.submit(() -> await(release), "b");
-        var third = CompletableFuture.supplyAsync(() -> bounded.submit(() -> "c", "c"));
+        bounded.submit("a", () -> await(release));
+        bounded.submit("b", () -> await(release));
+        var third = CompletableFuture.supplyAsync(() -> bounded.submit("c", () -> "c"));
         Thread.sleep(200);
         assertFalse(third.isDone(), "submit did not block");
         release.countDown();
@@ -104,10 +106,10 @@ class GroupAwareExecutorTest {
     void interruptedSubmitIsRejected() {
         var bounded = new GroupAwareExecutor(pool, 1);
         var release = new CountDownLatch(1);
-        bounded.submit(() -> await(release), "a");
+        bounded.submit("a", () -> await(release));
         Thread.currentThread().interrupt();
         try {
-            assertThrows(RejectedExecutionException.class, () -> bounded.submit(() -> "b", "b"));
+            assertThrows(RejectedExecutionException.class, () -> bounded.submit("b", () -> "b"));
             assertTrue(Thread.interrupted(), "interrupt flag was not restored");
         } finally {
             release.countDown();
@@ -118,14 +120,60 @@ class GroupAwareExecutorTest {
     void blockedSubmitIsRejectedAfterShutdown() throws Exception {
         var bounded = new GroupAwareExecutor(pool, 1);
         var release = new CountDownLatch(1);
-        bounded.submit(() -> await(release), "a");
-        var blocked = CompletableFuture.runAsync(() -> bounded.submit(() -> "b", "b"));
+        bounded.submit("a", () -> await(release));
+        var blocked = CompletableFuture.runAsync(() -> bounded.submit("b", () -> "b"));
         Thread.sleep(100);
         bounded.shutdown();
         release.countDown();
         var e = assertThrows(ExecutionException.class, () -> blocked.get(10, SECONDS));
         assertInstanceOf(RejectedExecutionException.class, e.getCause());
         assertTrue(bounded.awaitTermination(10, SECONDS));
+    }
+
+    @Test
+    void factoryMethodsCreateTasksOfGroup() throws Exception {
+        var callable = GroupAwareCallable.of("a", () -> "callable");
+        var supplier = GroupAwareSupplier.of("b", () -> "supplier");
+        var runnable = GroupAwareRunnable.of("c", () -> {});
+        assertEquals("a", callable.getGroup());
+        assertEquals("b", supplier.getGroup());
+        assertEquals("c", runnable.getGroup());
+        assertEquals("callable", executor.submit(callable).get(10, SECONDS));
+        assertEquals("supplier", executor.submit(supplier).get(10, SECONDS));
+        assertNull(executor.submit(runnable).get(10, SECONDS));
+    }
+
+    @Test
+    void factoryMethodsRejectNullGroup() {
+        assertThrows(NullPointerException.class, () -> GroupAwareCallable.of(null, () -> "x"));
+        assertThrows(NullPointerException.class, () -> GroupAwareSupplier.of(null, () -> "x"));
+        assertThrows(NullPointerException.class, () -> GroupAwareRunnable.of(null, () -> {}));
+    }
+
+    @Test
+    void reportsPendingTasks() throws Exception {
+        var release = new CountDownLatch(1);
+        var first = executor.submit("a", () -> await(release));
+        var second = executor.submit("a", () -> await(release));
+        assertEquals(2, executor.getPendingTaskCount());
+        assertTrue(executor.hasPendingTasks("a"));
+        assertFalse(executor.hasPendingTasks("b"));
+        release.countDown();
+        first.get(10, SECONDS);
+        second.get(10, SECONDS);
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(10, SECONDS));
+        assertEquals(0, executor.getPendingTaskCount());
+        assertFalse(executor.hasPendingTasks("a"));
+    }
+
+    @Test
+    void reportsShutdownState() throws Exception {
+        assertFalse(executor.isShutdown());
+        assertFalse(executor.awaitTermination(50, MILLISECONDS), "terminated without shutdown");
+        executor.shutdown();
+        assertTrue(executor.isShutdown());
+        assertTrue(executor.isTerminated());
     }
 
     @Test
@@ -140,20 +188,6 @@ class GroupAwareExecutorTest {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);
         }
-    }
-
-    private static GroupAwareRunnable groupAwareRunnable(Object group, Runnable body) {
-        return new GroupAwareRunnable() {
-            @Override
-            public void run() {
-                body.run();
-            }
-
-            @Override
-            public Object getGroup() {
-                return group;
-            }
-        };
     }
 
 }

@@ -1,6 +1,5 @@
-package dispatch;
+package org.ear.executor;
 
-import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +44,6 @@ public class GroupAwareExecutor implements Executor, AutoCloseable {
     private final AtomicInteger pendingTasks = new AtomicInteger();
     private final Semaphore permits;
     private final CompletableFuture<Void> terminated = new CompletableFuture<>();
-    @Getter
     private volatile boolean shutdown;
 
     /**
@@ -96,15 +94,15 @@ public class GroupAwareExecutor implements Executor, AutoCloseable {
      * <p>
      * If the maximum number of pending tasks is reached, this method blocks until a pending task has finished.
      *
-     * @param task task to be executed
      * @param group group to which the task belongs
+     * @param task task to be executed
      * @param <U> result type of the task
      * @return a future representing the status and result of the task
      * @throws NullPointerException if group is null
      * @throws RejectedExecutionException if this executor or the thread pool is shut down, or the
      *                                    calling thread is interrupted while waiting for a pending task to finish
      */
-    public <U> CompletableFuture<U> submit(Callable<U> task, Object group) {
+    public <U> CompletableFuture<U> submit(Object group, Callable<U> task) {
         Objects.requireNonNull(task, "Task must not be null");
         Objects.requireNonNull(group, "Group must not be null");
         if (shutdown) {
@@ -154,35 +152,37 @@ public class GroupAwareExecutor implements Executor, AutoCloseable {
     /**
      * Submits a task without result that belongs to the given non-null group.
      *
-     * @param task task to be executed
      * @param group group to which the task belongs
+     * @param task task to be executed
      * @return a future representing the status of the task
      * @throws NullPointerException if group is null
      * @throws RejectedExecutionException if this executor or the thread pool is shut down
-     * @see #submit(Callable, Object)
+     * @see #submit(Object, Callable)
      */
-    public CompletableFuture<Void> submit(Runnable task, Object group) {
+    public CompletableFuture<Void> submit(Object group, Runnable task) {
         Objects.requireNonNull(task, "Task must not be null");
-        return submit(() -> {
+        return submit(group, () -> {
             task.run();
             return null;
-        }, group);
+        });
     }
 
     /**
      * Submits a task that knows the group it belongs to, e.g. a {@link GroupAwareRunnable},
      * {@link GroupAwareCallable} or {@link GroupAwareSupplier}.
+     * If the task throws a checked exception, the returned future completes exceptionally with a
+     * {@link CompletionException} caused by it.
      *
      * @param task task to be executed
      * @param <U> result type of the task
      * @return a future representing the status and result of the task
      * @throws NullPointerException if the group of the task is null
      * @throws RejectedExecutionException if this executor or the thread pool is shut down
-     * @see #submit(Callable, Object)
+     * @see #submit(Object, Callable)
      */
     public <U> CompletableFuture<U> submit(GroupAwareTask<U> task) {
         Callable<U> callable = task::execute;
-        return submit(callable, task.getGroup());
+        return submit(task.getGroup(), callable);
     }
 
     /**
@@ -251,6 +251,13 @@ public class GroupAwareExecutor implements Executor, AutoCloseable {
     }
 
     /**
+     * @return true if {@link #shutdown()} or {@link #close()} has been called
+     */
+    public boolean isShutdown() {
+        return shutdown;
+    }
+
+    /**
      * @return true if this executor has been shut down and all submitted tasks have finished
      */
     public boolean isTerminated() {
@@ -259,6 +266,9 @@ public class GroupAwareExecutor implements Executor, AutoCloseable {
 
     /**
      * Blocks until all submitted tasks have finished after a shutdown request, or the timeout occurs.
+     * <p>
+     * Termination requires a prior call to {@link #shutdown()}. Without it, this method always waits
+     * for the full timeout and returns false, even if no tasks are pending.
      *
      * @param timeout the maximum time to wait
      * @param unit the time unit of the timeout argument
@@ -286,8 +296,30 @@ public class GroupAwareExecutor implements Executor, AutoCloseable {
         terminated.join();
     }
 
+    /**
+     * @return the number of groups that currently have pending tasks
+     */
     public int getGroupMapSize() {
         return tasks.size();
+    }
+
+    /**
+     * Returns the number of pending tasks, i.e. tasks that have been submitted but not finished yet,
+     * across all groups. A task being submitted concurrently may already be counted.
+     *
+     * @return the number of pending tasks
+     */
+    public int getPendingTaskCount() {
+        return pendingTasks.get();
+    }
+
+    /**
+     * @param group the group to check
+     * @return true if the given group currently has pending tasks
+     * @throws NullPointerException if group is null
+     */
+    public boolean hasPendingTasks(Object group) {
+        return tasks.containsKey(Objects.requireNonNull(group, "Group must not be null"));
     }
 
 }

@@ -1,4 +1,4 @@
-package dispatch;
+package org.ear.executor;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

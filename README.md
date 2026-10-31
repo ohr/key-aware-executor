@@ -1,4 +1,4 @@
-# key-aware-executor
+# group-aware-executor
 
 `GroupAwareExecutor` dispatches tasks to an `ExecutorService` while guaranteeing that tasks
 belonging to the same *group* (key) run **sequentially, in submission order**. Tasks of different
@@ -27,8 +27,8 @@ predecessor has finished.
 
 ```xml
 <dependency>
-    <groupId>key-aware-executor</groupId>
-    <artifactId>key-aware-executor</artifactId>
+    <groupId>org.ear.executor</groupId>
+    <artifactId>group-aware-executor</artifactId>
     <version>1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -57,14 +57,14 @@ A group can be any non-null object that properly implements `equals()` and `hash
 
 ```java
 // Callable with a result
-CompletableFuture<Order> order = executor.submit(() -> repository.load(orderId), orderId);
+CompletableFuture<Order> order = executor.submit(orderId, () -> repository.load(orderId));
 
 // Runnable without a result
-CompletableFuture<Void> done = executor.submit(() -> mailer.send(confirmation), orderId);
+CompletableFuture<Void> done = executor.submit(orderId, () -> mailer.send(confirmation));
 ```
 
 The result type is chosen per call, so a single executor can run tasks with different result types.
-A `Supplier` can be submitted as `executor.submit(supplier::get, group)`.
+A `Supplier` can be submitted as `executor.submit(group, supplier::get)`.
 
 Tasks can also carry their group themselves by implementing `GroupAwareRunnable`,
 `GroupAwareCallable` or `GroupAwareSupplier`:
@@ -84,6 +84,13 @@ record OrderEvent(String orderId, String payload) implements GroupAwareRunnable 
 }
 
 executor.submit(new OrderEvent("order-42", "created"));
+```
+
+For ad-hoc tasks, the factory methods `GroupAwareRunnable.of`, `GroupAwareCallable.of` and
+`GroupAwareSupplier.of` attach a group to a plain lambda:
+
+```java
+executor.execute(GroupAwareRunnable.of(orderId, () -> mailer.send(confirmation)));
 ```
 
 `GroupAwareExecutor` also implements `java.util.concurrent.Executor`. `execute()` only accepts
@@ -136,7 +143,12 @@ try (var pool = Executors.newVirtualThreadPerTaskExecutor();
 }   // closes the executor first, then the pool
 ```
 
-After `shutdown()`, `submit` and `execute` throw a `RejectedExecutionException`.
+After `shutdown()`, `submit` and `execute` throw a `RejectedExecutionException`. `isShutdown()`
+tells whether `shutdown()` has been called, `isTerminated()` whether all pending tasks have finished
+since.
+
+`awaitTermination` only returns `true` after `shutdown()` has been called. Without it, it always waits
+for the full timeout and returns `false`, even if no tasks are pending.
 
 ### Choosing a thread pool
 
@@ -147,6 +159,11 @@ CPU-bound work. Tasks that block on I/O or locks can starve it. Prefer a dedicat
 - `Executors.newVirtualThreadPerTaskExecutor()` for blocking (I/O-bound) tasks
 - `Executors.newFixedThreadPool(n)` for CPU-bound tasks or to limit concurrency
 
+### Monitoring
+
 The group map entry of a group is removed as soon as the group has no pending tasks, so the number of
-distinct groups over time does not grow memory. `getGroupMapSize()` returns the number of groups that
-currently have pending tasks.
+distinct groups over time does not grow memory. For health checks and metrics:
+
+- `getPendingTaskCount()` returns the number of submitted, but not yet finished tasks across all groups
+- `getGroupMapSize()` returns the number of groups that currently have pending tasks
+- `hasPendingTasks(group)` tells whether a given group currently has pending tasks

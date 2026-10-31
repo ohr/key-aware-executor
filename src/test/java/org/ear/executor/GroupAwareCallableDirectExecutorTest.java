@@ -1,8 +1,8 @@
-package dispatch;
+package org.ear.executor;
 
 import java.util.concurrent.ExecutorService;
 
-class GroupAwareRunnableDirectExecutorTest extends AbstractGroupAwareRunnableTest {
+class GroupAwareCallableDirectExecutorTest extends AbstractGroupAwareCallableTest {
 
     @Override
     protected ExecutorService newPool() {
